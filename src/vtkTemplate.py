@@ -7,11 +7,12 @@ import numpy as np
 # the data used in this example can be download from
 # http://oceans11.lanl.gov/deepwaterimpact/yA31/300x300x300-FourScalars_resolution/pv_insitu_300x300x300_49275.vti
 
-#setup the dataset filepath (change this file path to where you store the dataset)
-filename = '/home/caseywang777/Downloads/pv_insitu_300x300x300_30068.vti'
+# setup the dataset filepath (change this file path to where you store the dataset)
+# filename = '/home/caseywang777/Downloads/pv_insitu_300x300x300_30068.vti'
+filename = 'D:/Downloads/Asteroid Ensemble - Airburst/pv_insitu_300x300x300_09709-ts10.vti'
 
-#the name of data array which is used in this example
-daryName = 'v02' #'v03' 'prs' 'tev'
+# the name of data array which is used in this example
+daryName = 'v03' #'v02' 'prs' 'tev'
 
 # for accessing build-in color access
 colors = vtk.vtkNamedColors()
@@ -79,7 +80,7 @@ xyColors.Update()
 xy = vtk.vtkImageActor()
 xy.GetMapper().SetInputConnection(xyColors.GetOutputPort())
 ######### TODO: fill up the parameter in the following line to slice the plance at xy plane #####
-xy.SetDisplayExtent("TODO......")
+xy.SetDisplayExtent(0, 300, 0, 300, 150, 150)
 
 # It is convenient to create an initial view of the data. The
 # FocalPoint and Position form a vector direction. Later on
