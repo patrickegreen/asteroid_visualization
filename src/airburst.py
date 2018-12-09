@@ -1,7 +1,7 @@
 import vtk
 import vtk.util.numpy_support as VN
 import numpy as np
-
+import os
 
 # Use built-in VTK color names
 colors = vtk.vtkNamedColors()
@@ -64,12 +64,83 @@ class AsteroidVTK(object):
         # Params (minX, maxX, minY, maxY, minZ, maxZ)
         xy.SetDisplayExtent(0, 300, 0, 300, 150, 150)
         self.renderer.AddActor(xy)
+    
+    def _add_actor_two_level_surface(self, attribute, min_value, max_value):
+        
+        data_range = max_value - min_value
+        transfer_opacity = vtk.vtkPiecewiseFunction()
+        transfer_opacity.AddPoint(min_value, 0.0)
+        transfer_opacity.AddPoint(min_value + data_range / 2, 0.005)
+        transfer_opacity.AddPoint(max_value, 0.01)
+
+        # Create transfer mapping scalar value to color
+        transfer_color = vtk.vtkColorTransferFunction()
+        transfer_color.AddRGBPoint(min_value, 0.0, 0.0, 0.2)
+        transfer_color.AddRGBPoint(min_value + (data_range / 4) * 1, 0.0, 0.0, 1.0)
+        transfer_color.AddRGBPoint(min_value + (data_range / 4) * 2, 0.0, 0.5, 0.0)
+        transfer_color.AddRGBPoint(min_value + (data_range / 4) * 3, 0.0, 1.0, 0.0)
+        transfer_color.AddRGBPoint(min_value + (data_range / 4) * 4, 0.0, 0.2, 0.0)
+
+        # The property describes how the data will look
+        volume_property = vtk.vtkVolumeProperty()
+        volume_property.SetColor(transfer_color)
+        volume_property.SetScalarOpacity(transfer_opacity)
+        volume_property.ShadeOn()  # on/off shader
+        volume_property.SetInterpolationTypeToLinear()
+
+        # The mapper / ray cast function know how to render the data
+        volume_mapper = vtk.vtkGPUVolumeRayCastMapper()
+        volume_mapper.SetBlendModeToComposite()
+        volume_mapper.SetInputConnection(self.reader.GetOutputPort())
+
+        # 1. Create the low threshold
+        low = vtk.vtkContourFilter()
+        low.SetInputConnection(self.reader.GetOutputPort())
+        low.SetValue(0, 0.1)
+        low_mapper = vtk.vtkPolyDataMapper()
+        low_mapper.SetInputConnection(low.GetOutputPort())
+        low_mapper.ScalarVisibilityOff()
+        low_actor = vtk.vtkActor()
+        low_actor.SetMapper(low_mapper)
+        low_actor.GetProperty().SetColor(colors.GetColor3d("Banana"))
+        low_actor.GetProperty().SetSpecular(.3)
+        low_actor.GetProperty().SetSpecularPower(20)
+        low_actor.GetProperty().SetOpacity(0.2)
+
+        # 2. Create the high threshold
+        high = vtk.vtkContourFilter()
+        high.SetInputConnection(self.reader.GetOutputPort())
+        high.SetValue(0, 0.9)
+        high_mapper = vtk.vtkPolyDataMapper()
+        high_mapper.SetInputConnection(high.GetOutputPort())
+        high_mapper.ScalarVisibilityOff()
+        high_actor = vtk.vtkActor()
+        high_actor.SetMapper(high_mapper)
+        high_actor.GetProperty().SetColor(colors.GetColor3d("Ivory"))
+        high_actor.GetProperty().SetSpecular(.3)
+        high_actor.GetProperty().SetSpecularPower(20)
+        high_actor.GetProperty().SetOpacity(0.8)
+
+        # Define transfer function range
+        transfer_color = vtk.vtkColorTransferFunction()
+        transfer_color.AddRGBPoint(min_value, 1.0, 1.0, 1.0)
+        transfer_color.AddRGBPoint(max_value, 0.0, 0.0, 1.0)
+
+        scalar_bar = vtk.vtkScalarBarActor()
+        scalar_bar.SetLookupTable(transfer_color)
+        scalar_bar.SetTitle("Temporary Title")
+        scalar_bar.SetOrientationToHorizontal()
+        scalar_bar.GetLabelTextProperty().SetColor(0, 1, 1)
+        scalar_bar.GetTitleTextProperty().SetColor(0, 0, 1)
+
+        self.renderer.AddActor(low_actor)
+        self.renderer.AddActor(high_actor)
 
     def _initialize_camera(self):
         """
         Initialize the camera and view, as well as interaction.
 
-        :return camera: (vtk.
+        :return camera: (vtkOpenGLCamera)
         """
         # Camera
         #   It is convenient to create an initial view of the data.
@@ -77,7 +148,6 @@ class AsteroidVTK(object):
         #   Later on (ResetCamera() method)
         #   This vector is used to position the camera to look at the data in this direction.
         camera = vtk.vtkCamera()
-        print(type(camera))
         camera.SetViewUp(0, 0, -1)
         camera.SetPosition(0, -1, 0)
         camera.SetFocalPoint(0, 0, 0)
@@ -109,9 +179,9 @@ class AsteroidVTK(object):
         self.interactor.Start()
         return camera
 
-    def _load_data(self, filename, attribute):
+    def _load_data(self, sourcefile, attribute):
         # Read Data
-        self.reader.SetFileName(filename)
+        self.reader.SetFileName(sourcefile)
         self.reader.Update()
 
         # Pull the data array we want to use (convert to numpy array)
@@ -119,19 +189,21 @@ class AsteroidVTK(object):
         data = VN.vtk_to_numpy(self.reader.GetOutput().GetPointData().GetScalars(attribute))
         return data
 
-    def render(self, filename, attribute):
-        data = self._load_data(filename, attribute)
+    def render(self, sourcefile, attribute):
+        data = self._load_data(sourcefile, attribute)
         min_value = np.amin(data)
         max_value = np.amax(data)
-        data_range = max_value - min_value
         self._add_actor_outline()
-        self._add_actor_slice(min_value, max_value)
+        # self._add_actor_slice(min_value, max_value)
+        self._add_actor_two_level_surface(attribute, min_value, max_value)
         camera = self._initialize_camera()
 
 
 # from src.airburst import run; run()
-# from src.airburst import run; a, filename, attr = run()
-def run(filename='D:/Downloads/Asteroid Ensemble - Airburst/pv_insitu_300x300x300_08415-ts08.vti', attribute='v03'):
+def run():
+    # image = 'pv_insitu_300x300x300_08415-ts08.vti'
+    image = 'pv_insitu_300x300x300_12806-ts20.vti'
+    sourcefile = os.path.join('D:/Downloads/Asteroid Ensemble - Airburst/', image)
+    attribute = 'v03'
     ast = AsteroidVTK()
-    ast.render(filename, attribute)
-    # return ast, filename, attribute
+    ast.render(sourcefile, attribute)
