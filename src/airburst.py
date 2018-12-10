@@ -166,7 +166,7 @@ class AsteroidVTK(object):
         data_range = max_value - min_value
         transfer_opacity = vtk.vtkPiecewiseFunction()
         transfer_opacity.AddPoint(min_value, 0.0)
-        transfer_opacity.AddPoint(min_value + data_range / 2, 0.0001)
+        transfer_opacity.AddPoint(min_value + data_range / 2, 0.0000)
         transfer_opacity.AddPoint(max_value, 0.01)
 
         # Create transfer mapping scalar value to color
@@ -320,7 +320,7 @@ def run(sample=True, iso=False, sliced=False, volume=False):
         sourcefile = os.path.join(root_folder, image)
         outfilename = 'sample_{0}.png'.format(tag)
         outfile = os.path.join('{0}output/'.format(root_folder), outfilename)
-        ast.render_iso(sourcefile, outfile, attribute)
+        ast.render_volume(sourcefile, outfile, attribute)
 
     # ISO_RENDER
     if iso:
