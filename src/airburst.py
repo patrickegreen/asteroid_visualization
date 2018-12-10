@@ -20,7 +20,7 @@ class AsteroidVTK(object):
         self.interactor.SetRenderWindow(self.window)
 
         # Set a background color for the renderer and set the size of the window
-        self.renderer.SetBackground(51/255, 77/255, 102/255)
+        self.renderer.SetBackground(0.5, 0.5, 0.5)  # gray - RGB rescale of [0,255] to [0, 1]
         self.window.SetSize(1000, 1000)
 
         self.reader = vtk.vtkXMLImageDataReader()
@@ -148,12 +148,12 @@ class AsteroidVTK(object):
         #   Later on (ResetCamera() method)
         #   This vector is used to position the camera to look at the data in this direction.
         camera = vtk.vtkCamera()
-        camera.SetViewUp(0, 0, -1)
-        camera.SetPosition(0, -1, 0)
+        camera.SetViewUp(0, 0, 0)
+        camera.SetPosition(0.5, 0.5, 0.4)
         camera.SetFocalPoint(0, 0, 0)
         camera.ComputeViewPlaneNormal()
-        camera.Azimuth(30.0)
-        camera.Elevation(30.0)
+        camera.Azimuth(0)
+        camera.Elevation(-30.0)
 
         # An initial camera view is created.  The Dolly() method moves
         # the camera towards the FocalPoint, thereby enlarging the image.
@@ -201,8 +201,11 @@ class AsteroidVTK(object):
 
 # from src.airburst import run; run()
 def run():
-    # image = 'pv_insitu_300x300x300_08415-ts08.vti'
-    image = 'pv_insitu_300x300x300_12806-ts20.vti'
+    # image = 'pv_insitu_300x300x300_06813-ts06.vti'
+    # image = 'pv_insitu_300x300x300_07678-ts07.vti'
+    image = 'pv_insitu_300x300x300_08415-ts08.vti'
+    # image = 'pv_insitu_300x300x300_09113-ts09.vti'
+    # image = 'pv_insitu_300x300x300_12806-ts20.vti'
     sourcefile = os.path.join('D:/Downloads/Asteroid Ensemble - Airburst/', image)
     attribute = 'v03'
     ast = AsteroidVTK()
