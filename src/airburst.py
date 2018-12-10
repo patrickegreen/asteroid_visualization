@@ -6,6 +6,29 @@ import os
 # Use built-in VTK color names
 colors = vtk.vtkNamedColors()
 
+AIRBURST = (
+    'pv_insitu_300x300x300_00000-ts00.vti',
+    'pv_insitu_300x300x300_01141-ts01.vti',
+    'pv_insitu_300x300x300_02286-ts02.vti',
+    'pv_insitu_300x300x300_03429-ts03.vti',
+    'pv_insitu_300x300x300_04617-ts04.vti',
+    'pv_insitu_300x300x300_05789-ts05.vti',
+    'pv_insitu_300x300x300_06813-ts06.vti',
+    'pv_insitu_300x300x300_07678-ts07.vti',
+    'pv_insitu_300x300x300_08415-ts08.vti',
+    'pv_insitu_300x300x300_09113-ts09.vti',
+    'pv_insitu_300x300x300_09709-ts10.vti',
+    'pv_insitu_300x300x300_10207-ts11.vti',
+    'pv_insitu_300x300x300_10642-ts12.vti',
+    'pv_insitu_300x300x300_11032-ts13.vti',
+    'pv_insitu_300x300x300_11370-ts14.vti',
+    'pv_insitu_300x300x300_11662-ts15.vti',
+    'pv_insitu_300x300x300_11910-ts16.vti',
+    'pv_insitu_300x300x300_12143-ts17.vti',
+    'pv_insitu_300x300x300_12364-ts18.vti',
+    'pv_insitu_300x300x300_12578-ts19.vti',
+    'pv_insitu_300x300x300_12806-ts20.vti',
+)
 
 class AsteroidVTK(object):
 
@@ -65,8 +88,58 @@ class AsteroidVTK(object):
         xy.SetDisplayExtent(0, 300, 0, 300, 150, 150)
         self.renderer.AddActor(xy)
     
-    def _add_actor_two_level_surface(self, attribute, min_value, max_value):
-        
+    def _add_actor_isosurface(self, min_value, max_value):
+        """
+        Add an iso-surface based on volume thresholds
+        """
+        # 1. Create the low threshold
+        low = vtk.vtkContourFilter()
+        low.SetInputConnection(self.reader.GetOutputPort())
+        low.SetValue(0, 0.2)
+        low_mapper = vtk.vtkPolyDataMapper()
+        low_mapper.SetInputConnection(low.GetOutputPort())
+        low_mapper.ScalarVisibilityOff()
+        low_actor = vtk.vtkActor()
+        low_actor.SetMapper(low_mapper)
+        low_actor.GetProperty().SetColor(colors.GetColor3d("Banana"))
+        low_actor.GetProperty().SetSpecular(.3)
+        low_actor.GetProperty().SetSpecularPower(20)
+        low_actor.GetProperty().SetOpacity(0.2)
+
+        # 2. Create the high threshold
+        high = vtk.vtkContourFilter()
+        high.SetInputConnection(self.reader.GetOutputPort())
+        high.SetValue(0, 0.8)
+        high_mapper = vtk.vtkPolyDataMapper()
+        high_mapper.SetInputConnection(high.GetOutputPort())
+        high_mapper.ScalarVisibilityOff()
+        high_actor = vtk.vtkActor()
+        high_actor.SetMapper(high_mapper)
+        high_actor.GetProperty().SetColor(colors.GetColor3d("Ivory"))
+        high_actor.GetProperty().SetSpecular(.3)
+        high_actor.GetProperty().SetSpecularPower(20)
+        high_actor.GetProperty().SetOpacity(0.8)
+
+        # Define transfer function range
+        transfer_color = vtk.vtkColorTransferFunction()
+        transfer_color.AddRGBPoint(min_value, 1.0, 1.0, 1.0)
+        transfer_color.AddRGBPoint(max_value, 0.0, 0.0, 1.0)
+
+        scalar_bar = vtk.vtkScalarBarActor()
+        scalar_bar.SetLookupTable(transfer_color)
+        scalar_bar.SetTitle("Temporary Title")
+        scalar_bar.SetOrientationToHorizontal()
+        scalar_bar.GetLabelTextProperty().SetColor(0, 1, 1)
+        scalar_bar.GetTitleTextProperty().SetColor(0, 0, 1)
+
+        self.renderer.AddActor(low_actor)
+        self.renderer.AddActor(high_actor)
+        return low_actor, high_actor
+
+    def _add_actor_volume_render(self, min_value, max_value):
+        """
+        Add a volume render.
+        """
         data_range = max_value - min_value
         transfer_opacity = vtk.vtkPiecewiseFunction()
         transfer_opacity.AddPoint(min_value, 0.0)
@@ -92,49 +165,8 @@ class AsteroidVTK(object):
         volume_mapper = vtk.vtkGPUVolumeRayCastMapper()
         volume_mapper.SetBlendModeToComposite()
         volume_mapper.SetInputConnection(self.reader.GetOutputPort())
-
-        # 1. Create the low threshold
-        low = vtk.vtkContourFilter()
-        low.SetInputConnection(self.reader.GetOutputPort())
-        low.SetValue(0, 0.1)
-        low_mapper = vtk.vtkPolyDataMapper()
-        low_mapper.SetInputConnection(low.GetOutputPort())
-        low_mapper.ScalarVisibilityOff()
-        low_actor = vtk.vtkActor()
-        low_actor.SetMapper(low_mapper)
-        low_actor.GetProperty().SetColor(colors.GetColor3d("Banana"))
-        low_actor.GetProperty().SetSpecular(.3)
-        low_actor.GetProperty().SetSpecularPower(20)
-        low_actor.GetProperty().SetOpacity(0.2)
-
-        # 2. Create the high threshold
-        high = vtk.vtkContourFilter()
-        high.SetInputConnection(self.reader.GetOutputPort())
-        high.SetValue(0, 0.9)
-        high_mapper = vtk.vtkPolyDataMapper()
-        high_mapper.SetInputConnection(high.GetOutputPort())
-        high_mapper.ScalarVisibilityOff()
-        high_actor = vtk.vtkActor()
-        high_actor.SetMapper(high_mapper)
-        high_actor.GetProperty().SetColor(colors.GetColor3d("Ivory"))
-        high_actor.GetProperty().SetSpecular(.3)
-        high_actor.GetProperty().SetSpecularPower(20)
-        high_actor.GetProperty().SetOpacity(0.8)
-
-        # Define transfer function range
-        transfer_color = vtk.vtkColorTransferFunction()
-        transfer_color.AddRGBPoint(min_value, 1.0, 1.0, 1.0)
-        transfer_color.AddRGBPoint(max_value, 0.0, 0.0, 1.0)
-
-        scalar_bar = vtk.vtkScalarBarActor()
-        scalar_bar.SetLookupTable(transfer_color)
-        scalar_bar.SetTitle("Temporary Title")
-        scalar_bar.SetOrientationToHorizontal()
-        scalar_bar.GetLabelTextProperty().SetColor(0, 1, 1)
-        scalar_bar.GetTitleTextProperty().SetColor(0, 0, 1)
-
-        self.renderer.AddActor(low_actor)
-        self.renderer.AddActor(high_actor)
+        self.renderer.AddActor(volume_mapper)
+        return volume_mapper
 
     def _initialize_camera(self):
         """
@@ -189,14 +221,26 @@ class AsteroidVTK(object):
         data = VN.vtk_to_numpy(self.reader.GetOutput().GetPointData().GetScalars(attribute))
         return data
 
+    def _reset(self, camera, actor=None):
+        if actor:
+            self.renderer.RemoveActor(actor)
+        self.window.Render()
+        self.renderer.ResetCamera()
+        camera.Dolly(1.5)
+        return camera
+
+    def _save_image(self, outfile):
+        pass
+
     def render(self, sourcefile, attribute):
         data = self._load_data(sourcefile, attribute)
         min_value = np.amin(data)
         max_value = np.amax(data)
         self._add_actor_outline()
         # self._add_actor_slice(min_value, max_value)
-        self._add_actor_two_level_surface(attribute, min_value, max_value)
+        iso = self._add_actor_isosurface(min_value, max_value)
         camera = self._initialize_camera()
+        # volume = self._add_actor_volume_render(min_value, max_value)
 
 
 # from src.airburst import run; run()
